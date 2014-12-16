@@ -21,12 +21,14 @@ import org.flywaydb.core.internal.util.FileCopyUtils;
 import org.flywaydb.core.internal.util.scanner.Resource;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 
 /**
  * Resource within an Android App.
  */
 public class AndroidResource implements Resource {
+
     private final AssetManager assetManager;
     private final String path;
     private final String name;
@@ -50,16 +52,19 @@ public class AndroidResource implements Resource {
     @Override
     public String loadAsString(String encoding) {
         try {
-            return FileCopyUtils.copyToString(new InputStreamReader(assetManager.open(getLocation()), encoding));
+            return FileCopyUtils.copyToString(new InputStreamReader(loadAsInputStream(), encoding));
         } catch (IOException e) {
             throw new FlywayException("Unable to load asset: " + getLocation(), e);
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public byte[] loadAsBytes() {
         try {
-            return FileCopyUtils.copyToByteArray(assetManager.open(getLocation()));
+            return FileCopyUtils.copyToByteArray(loadAsInputStream());
         } catch (IOException e) {
             throw new FlywayException("Unable to load asset: " + getLocation(), e);
         }
@@ -68,5 +73,14 @@ public class AndroidResource implements Resource {
     @Override
     public String getFilename() {
         return name;
+    }
+
+    @Override
+    public InputStream loadAsInputStream() {
+        try {
+            return assetManager.open(getLocation());
+        } catch (IOException e) {
+            throw new FlywayException("Unable to load asset: " + getLocation(), e);
+        }
     }
 }

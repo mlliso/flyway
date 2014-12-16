@@ -15,6 +15,8 @@
  */
 package org.flywaydb.core.internal.resolver.sql;
 
+import java.io.IOException;
+import java.io.InputStream;
 import org.flywaydb.core.api.MigrationType;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.resolver.MigrationResolver;
@@ -33,6 +35,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.zip.CRC32;
+import java.util.zip.Checksum;
+import org.flywaydb.core.api.FlywayException;
 
 /**
  * Migration resolver for sql files on the classpath. The sql files must have names like
@@ -137,7 +141,7 @@ public class SqlMigrationResolver implements MigrationResolver {
 
         migration.setScript(extractScriptName(resource));
 
-        migration.setChecksum(calculateChecksum(resource.loadAsBytes()));
+        migration.setChecksum(calculateChecksum(resource.loadAsInputStream()));
         migration.setType(MigrationType.SQL);
         return migration;
     }
@@ -162,9 +166,17 @@ public class SqlMigrationResolver implements MigrationResolver {
      * @param bytes The bytes to calculate the checksum for.
      * @return The crc-32 checksum of the bytes.
      */
-    private static int calculateChecksum(byte[] bytes) {
-        final CRC32 crc32 = new CRC32();
-        crc32.update(bytes);
+    int calculateChecksum(InputStream inputStream) {
+        final Checksum crc32 = new CRC32();
+        byte[] bytes = new byte[1024 * 1024];
+        int length = 0;
+        try {
+            while ((length = inputStream.read(bytes)) != -1) {
+                crc32.update(bytes, 0, length);
+            }
+        } catch (IOException e) {
+            throw new FlywayException("Unable to compute crc checksum for inputStream", e);
+        }
         return (int) crc32.getValue();
     }
 }

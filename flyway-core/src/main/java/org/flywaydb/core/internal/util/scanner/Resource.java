@@ -15,6 +15,8 @@
  */
 package org.flywaydb.core.internal.util.scanner;
 
+import java.io.InputStream;
+
 /**
  * A loadable resource.
  */
@@ -45,6 +47,13 @@ public interface Resource {
      * @return The contents of the resource.
      */
     byte[] loadAsBytes();
+    
+    /**
+     * Loads this resource as a InputStream.
+     *
+     * @return The InputStream.
+     */
+    InputStream loadAsInputStream() ;
 
     /**
      * @return The filename of this resource, without the path.

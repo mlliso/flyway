@@ -1,20 +1,23 @@
 /**
  * Copyright 2010-2014 Axel Fontaine
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
  *
- *         http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
 package org.flywaydb.core.internal.resolver.sql;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.resolver.ResolvedMigration;
 import org.flywaydb.core.internal.util.scanner.classpath.ClassPathResource;
@@ -26,6 +29,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Random;
+import java.util.zip.CRC32;
+import org.junit.Assert;
 
 import static org.junit.Assert.assertEquals;
 
@@ -33,10 +39,11 @@ import static org.junit.Assert.assertEquals;
  * Testcase for SqlMigration.
  */
 public class SqlMigrationResolverSmallTest {
+
     @Test
     public void resolveMigrations() {
-        SqlMigrationResolver sqlMigrationResolver =
-                new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
+        SqlMigrationResolver sqlMigrationResolver
+                = new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
                         new Location("migration/subdir"), PlaceholderReplacer.NO_PLACEHOLDERS, "UTF-8", "V", "__", ".sql");
         Collection<ResolvedMigration> migrations = sqlMigrationResolver.resolveMigrations();
 
@@ -55,8 +62,8 @@ public class SqlMigrationResolverSmallTest {
 
     @Test
     public void resolveMigrationsRoot() {
-        SqlMigrationResolver sqlMigrationResolver =
-                new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(), new Location(""),
+        SqlMigrationResolver sqlMigrationResolver
+                = new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(), new Location(""),
                         PlaceholderReplacer.NO_PLACEHOLDERS, "UTF-8", "CheckValidate", "__", ".sql");
 
         assertEquals(1, sqlMigrationResolver.resolveMigrations().size());
@@ -64,8 +71,8 @@ public class SqlMigrationResolverSmallTest {
 
     @Test(expected = FlywayException.class)
     public void resolveMigrationsNonExisting() {
-        SqlMigrationResolver sqlMigrationResolver =
-                new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
+        SqlMigrationResolver sqlMigrationResolver
+                = new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
                         new Location("non/existing"), PlaceholderReplacer.NO_PLACEHOLDERS, "UTF-8",
                         "CheckValidate", "__", ".sql");
 
@@ -74,8 +81,8 @@ public class SqlMigrationResolverSmallTest {
 
     @Test
     public void extractScriptName() {
-        SqlMigrationResolver sqlMigrationResolver =
-                new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
+        SqlMigrationResolver sqlMigrationResolver
+                = new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
                         new Location("db/migration"), PlaceholderReplacer.NO_PLACEHOLDERS, "UTF-8", "db_", "__", ".sql");
 
         assertEquals("db_0__init.sql", sqlMigrationResolver.extractScriptName(
@@ -84,8 +91,8 @@ public class SqlMigrationResolverSmallTest {
 
     @Test
     public void extractScriptNameRootLocation() {
-        SqlMigrationResolver sqlMigrationResolver =
-                new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(), new Location(""),
+        SqlMigrationResolver sqlMigrationResolver
+                = new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(), new Location(""),
                         PlaceholderReplacer.NO_PLACEHOLDERS, "UTF-8", "db_", "__", ".sql");
 
         assertEquals("db_0__init.sql", sqlMigrationResolver.extractScriptName(
@@ -94,11 +101,50 @@ public class SqlMigrationResolverSmallTest {
 
     @Test
     public void extractScriptNameFileSystemPrefix() {
-        SqlMigrationResolver sqlMigrationResolver =
-                new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
+        SqlMigrationResolver sqlMigrationResolver
+                = new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
                         new Location("filesystem:/some/dir"), PlaceholderReplacer.NO_PLACEHOLDERS, "UTF-8",
                         "V", "__", ".sql");
 
         assertEquals("V3.171__patch.sql", sqlMigrationResolver.extractScriptName(new FileSystemResource("/some/dir/V3.171__patch.sql")));
+    }
+
+    @Test
+    public void calculateChecksumTestByComparingWithOldImplementation() throws UnsupportedEncodingException {
+        final StringBuilder tmp = new StringBuilder();
+        for (char ch = '0'; ch <= '9'; ++ch) {
+            tmp.append(ch);
+        }
+        for (char ch = 'a'; ch <= 'z'; ++ch) {
+            tmp.append(ch);
+        }
+        for (char ch = 'A'; ch <= 'Z'; ++ch) {
+            tmp.append(ch);
+        }
+        final char[] charset = tmp.toString().toCharArray();
+        final Random rnd = new Random();
+        int length = 1024 * 1024;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            sb.append(charset[rnd.nextInt(charset.length)]);
+        }
+        final String input = sb.toString();
+        final byte[] bytes = input.getBytes("UTF-8");
+        InputStream inputStream = new ByteArrayInputStream(bytes);
+        
+        
+        //Calculate crc32 old style
+        final CRC32 crc32 = new CRC32();
+        crc32.update(bytes);
+        final int oldcrc = (int) crc32.getValue();
+        
+        SqlMigrationResolver sqlMigrationResolver
+                = new SqlMigrationResolver(null, Thread.currentThread().getContextClassLoader(),
+                        new Location("filesystem:/some/dir"), PlaceholderReplacer.NO_PLACEHOLDERS, "UTF-8",
+                        "V", "__", ".sql");
+        
+        int newcrc = sqlMigrationResolver.calculateChecksum(inputStream);
+        
+        assertEquals(oldcrc, newcrc);
     }
 }

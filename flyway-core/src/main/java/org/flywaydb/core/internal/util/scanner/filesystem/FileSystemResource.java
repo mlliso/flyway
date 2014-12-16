@@ -22,6 +22,7 @@ import org.flywaydb.core.internal.util.scanner.Resource;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -70,7 +71,7 @@ public class FileSystemResource implements Resource, Comparable<FileSystemResour
      */
     public String loadAsString(String encoding) {
         try {
-            InputStream inputStream = new FileInputStream(location);
+            InputStream inputStream = loadAsInputStream();
             Reader reader = new InputStreamReader(inputStream, Charset.forName(encoding));
 
             return FileCopyUtils.copyToString(reader);
@@ -80,13 +81,26 @@ public class FileSystemResource implements Resource, Comparable<FileSystemResour
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public InputStream loadAsInputStream() {
+        InputStream inputStream;
+        try {
+            inputStream = new FileInputStream(location);
+        } catch (FileNotFoundException ex) {
+            throw new FlywayException("Unable to load filesystem resource: " + location.getPath());
+        }
+        return inputStream;
+    }
+
+    /**
      * Loads this resource as a byte array.
      *
      * @return The contents of the resource.
      */
     public byte[] loadAsBytes() {
         try {
-            InputStream inputStream = new FileInputStream(location);
+            InputStream inputStream = loadAsInputStream();
             return FileCopyUtils.copyToByteArray(inputStream);
         } catch (IOException e) {
             throw new FlywayException("Unable to load filesystem resource: " + location.getPath(), e);

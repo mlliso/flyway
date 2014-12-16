@@ -79,10 +79,7 @@ public class ClassPathResource implements Comparable<ClassPathResource>, Resourc
 
     public String loadAsString(String encoding) {
         try {
-            InputStream inputStream = classLoader.getResourceAsStream(location);
-            if (inputStream == null) {
-                throw new FlywayException("Unable to obtain inputstream for resource: " + location);
-            }
+            InputStream inputStream = loadAsInputStream();
             Reader reader = new InputStreamReader(inputStream, Charset.forName(encoding));
 
             return FileCopyUtils.copyToString(reader);
@@ -93,14 +90,22 @@ public class ClassPathResource implements Comparable<ClassPathResource>, Resourc
 
     public byte[] loadAsBytes() {
         try {
-            InputStream inputStream = classLoader.getResourceAsStream(location);
-            if (inputStream == null) {
-                throw new FlywayException("Unable to obtain inputstream for resource: " + location);
-            }
+            InputStream inputStream = loadAsInputStream();
             return FileCopyUtils.copyToByteArray(inputStream);
         } catch (IOException e) {
             throw new FlywayException("Unable to load resource: " + location, e);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public InputStream loadAsInputStream() {
+        InputStream inputStream = classLoader.getResourceAsStream(location);
+        if (inputStream == null) {
+            throw new FlywayException("Unable to obtain inputstream for resource: " + location);
+        }
+        return inputStream;
     }
 
     public String getFilename() {
